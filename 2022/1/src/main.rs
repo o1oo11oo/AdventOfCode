@@ -13,12 +13,12 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let example_1 =
-        std::fs::read_to_string("example_1.txt").expect("Should have been able to read the file");
-    let input_1 =
-        std::fs::read_to_string("input_1.txt").expect("Should have been able to read the file");
-    part_1(&input_1);
-    part_2(&input_1);
+    let example =
+        std::fs::read_to_string("example.txt").expect("Should have been able to read the file");
+    let input =
+        std::fs::read_to_string("input.txt").expect("Should have been able to read the file");
+    part_1(&input);
+    part_2(&input);
 }
 
 fn part_1(input: &str) {
