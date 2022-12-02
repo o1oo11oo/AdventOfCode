@@ -1,7 +1,7 @@
 use nom::{
     bytes::complete::take,
     character::complete::char,
-    combinator::{map, map_res, opt},
+    combinator::{map, opt},
     multi::many0,
     sequence::{separated_pair, terminated},
     IResult,
@@ -9,7 +9,7 @@ use nom::{
 
 fn main() {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "debug");
+        std::env::set_var("RUST_LOG", "info");
     }
     pretty_env_logger::init();
 
@@ -18,10 +18,20 @@ fn main() {
     let input =
         std::fs::read_to_string("input.txt").expect("Should have been able to read the file");
     part_1(&input);
+    part_2(&input);
 }
 
 fn part_1(input: &str) {
-    let (remaining, games) = games(input).unwrap();
+    let (_, games) = games_1(input).unwrap();
+    log::debug!("{games:#?}");
+    let scores = games.iter().map(|g| g.score()).collect::<Vec<_>>();
+    log::debug!("scores: {scores:?}");
+    let total: u32 = scores.iter().sum();
+    log::info!("total score: {total}");
+}
+
+fn part_2(input: &str) {
+    let (_, games) = games_2(input).unwrap();
     log::debug!("{games:#?}");
     let scores = games.iter().map(|g| g.score()).collect::<Vec<_>>();
     log::debug!("scores: {scores:?}");
@@ -67,33 +77,59 @@ enum Move {
     Scissors,
 }
 
-impl TryFrom<&str> for Move {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl Move {
+    fn from_move(value: &str) -> Self {
         match value {
-            "A" => Ok(Move::Rock),
-            "B" => Ok(Move::Paper),
-            "C" => Ok(Move::Scissors),
-            "X" => Ok(Move::Rock),
-            "Y" => Ok(Move::Paper),
-            "Z" => Ok(Move::Scissors),
-            _ => Err(()),
+            "A" => Move::Rock,
+            "B" => Move::Paper,
+            "C" => Move::Scissors,
+            "X" => Move::Rock,
+            "Y" => Move::Paper,
+            "Z" => Move::Scissors,
+            _ => unreachable!(),
+        }
+    }
+
+    fn from_answer(value: &str, other: &Move) -> Self {
+        match (value, other) {
+            ("X", Move::Rock) => Move::Scissors,
+            ("X", Move::Paper) => Move::Rock,
+            ("X", Move::Scissors) => Move::Paper,
+            ("Y", Move::Rock) => Move::Rock,
+            ("Y", Move::Paper) => Move::Paper,
+            ("Y", Move::Scissors) => Move::Scissors,
+            ("Z", Move::Rock) => Move::Paper,
+            ("Z", Move::Paper) => Move::Scissors,
+            ("Z", Move::Scissors) => Move::Rock,
+            _ => unreachable!(),
         }
     }
 }
 
-fn games(input: &str) -> IResult<&str, Vec<Game>> {
-    many0(terminated(game, opt(char('\n'))))(input)
+fn games_1(input: &str) -> IResult<&str, Vec<Game>> {
+    many0(terminated(game_1, opt(char('\n'))))(input)
 }
 
-fn game(input: &str) -> IResult<&str, Game> {
+fn games_2(input: &str) -> IResult<&str, Vec<Game>> {
+    many0(terminated(game_2, opt(char('\n'))))(input)
+}
+
+fn game_1(input: &str) -> IResult<&str, Game> {
     map(
         separated_pair(parse_move, char(' '), parse_move),
         Game::from,
     )(input)
 }
 
+fn game_2(input: &str) -> IResult<&str, Game> {
+    let (input, opponent_move) = terminated(parse_move, char(' '))(input)?;
+    let (input, own_move) = map(take(1usize), |input| {
+        Move::from_answer(input, &opponent_move)
+    })(input)?;
+
+    Ok((input, (opponent_move, own_move).into()))
+}
+
 fn parse_move(input: &str) -> IResult<&str, Move> {
-    map_res(take(1usize), Move::try_from)(input)
+    map(take(1usize), Move::from_move)(input)
 }
