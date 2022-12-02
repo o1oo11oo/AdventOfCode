@@ -18,6 +18,7 @@ fn main() {
     let input_1 =
         std::fs::read_to_string("input_1.txt").expect("Should have been able to read the file");
     part_1(&input_1);
+    part_2(&input_1);
 }
 
 fn part_1(input: &str) {
@@ -27,6 +28,17 @@ fn part_1(input: &str) {
     let calorie_totals = elves.iter().map(|e| e.total_calories()).collect::<Vec<_>>();
     let largest = calorie_totals.iter().max().unwrap();
     log::info!("Largest: {largest}");
+}
+
+fn part_2(input: &str) {
+    let (remaining, elves) = elves(input).unwrap();
+    log::debug!("remaining: {remaining}");
+
+    let mut calorie_totals = elves.iter().map(|e| e.total_calories()).collect::<Vec<_>>();
+    calorie_totals.sort();
+    calorie_totals.reverse();
+    let total: u32 = calorie_totals[..3].iter().sum();
+    log::info!("Total: {total}");
 }
 
 #[derive(Debug)]
