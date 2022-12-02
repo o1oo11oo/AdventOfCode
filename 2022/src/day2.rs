@@ -7,36 +7,24 @@ use nom::{
     IResult,
 };
 
-fn main() {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    pretty_env_logger::init();
-
-    let example =
-        std::fs::read_to_string("example.txt").expect("Should have been able to read the file");
-    let input =
-        std::fs::read_to_string("input.txt").expect("Should have been able to read the file");
-    part_1(&input);
-    part_2(&input);
-}
-
-fn part_1(input: &str) {
+pub(crate) fn part_1(input: &str) -> String {
     let (_, games) = games_1(input).unwrap();
     log::debug!("{games:#?}");
     let scores = games.iter().map(|g| g.score()).collect::<Vec<_>>();
     log::debug!("scores: {scores:?}");
     let total: u32 = scores.iter().sum();
-    log::info!("total score: {total}");
+
+    total.to_string()
 }
 
-fn part_2(input: &str) {
+pub(crate) fn part_2(input: &str) -> String {
     let (_, games) = games_2(input).unwrap();
     log::debug!("{games:#?}");
     let scores = games.iter().map(|g| g.score()).collect::<Vec<_>>();
     log::debug!("scores: {scores:?}");
     let total: u32 = scores.iter().sum();
-    log::info!("total score: {total}");
+
+    total.to_string()
 }
 
 #[derive(Debug)]
@@ -45,6 +33,7 @@ struct Game {
     own_move: Move,
 }
 
+#[allow(clippy::identity_op)]
 impl Game {
     fn score(&self) -> u32 {
         match (&self.own_move, &self.opponent_move) {

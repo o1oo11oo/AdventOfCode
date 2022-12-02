@@ -7,30 +7,17 @@ use nom::{
     IResult,
 };
 
-fn main() {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-    pretty_env_logger::init();
-
-    let example =
-        std::fs::read_to_string("example.txt").expect("Should have been able to read the file");
-    let input =
-        std::fs::read_to_string("input.txt").expect("Should have been able to read the file");
-    part_1(&input);
-    part_2(&input);
-}
-
-fn part_1(input: &str) {
+pub(crate) fn part_1(input: &str) -> String {
     let (remaining, elves) = elves(input).unwrap();
     log::debug!("remaining: {remaining}");
 
     let calorie_totals = elves.iter().map(|e| e.total_calories()).collect::<Vec<_>>();
     let largest = calorie_totals.iter().max().unwrap();
-    log::info!("Largest: {largest}");
+
+    largest.to_string()
 }
 
-fn part_2(input: &str) {
+pub(crate) fn part_2(input: &str) -> String {
     let (remaining, elves) = elves(input).unwrap();
     log::debug!("remaining: {remaining}");
 
@@ -38,7 +25,8 @@ fn part_2(input: &str) {
     calorie_totals.sort();
     calorie_totals.reverse();
     let total: u32 = calorie_totals[..3].iter().sum();
-    log::info!("Total: {total}");
+
+    total.to_string()
 }
 
 #[derive(Debug)]
