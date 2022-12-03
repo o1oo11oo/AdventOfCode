@@ -1,11 +1,18 @@
+#![feature(iter_array_chunks)]
+
 use clap::Parser;
 
 mod day1;
 mod day2;
+mod day3;
 
 type ProblemFns = (fn(&str) -> String, fn(&str) -> String);
 
-const DAYS: [ProblemFns; 2] = [(day1::part_1, day1::part_2), (day2::part_1, day2::part_2)];
+const DAYS: [ProblemFns; 3] = [
+    (day1::part_1, day1::part_2),
+    (day2::part_1, day2::part_2),
+    (day3::part_1, day3::part_2),
+];
 
 #[derive(Parser, Debug)]
 struct Args {
