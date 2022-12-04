@@ -5,13 +5,15 @@ use clap::Parser;
 mod day1;
 mod day2;
 mod day3;
+mod day4;
 
 type ProblemFns = (fn(&str) -> String, fn(&str) -> String);
 
-const DAYS: [ProblemFns; 3] = [
+const DAYS: [ProblemFns; 4] = [
     (day1::part_1, day1::part_2),
     (day2::part_1, day2::part_2),
     (day3::part_1, day3::part_2),
+    (day4::part_1, day4::part_2),
 ];
 
 #[derive(Parser, Debug)]
