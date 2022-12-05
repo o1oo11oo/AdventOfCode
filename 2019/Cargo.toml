@@ -1,0 +1,10 @@
+[package]
+name = "aoc_2019"
+version = "0.1.0"
+authors = ["Lukas Fischer <rust@o1oo11oo.de>"]
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.0.29", features = ["derive"] }
+log = "0.4.17"
+pretty_env_logger = "0.4.0"
