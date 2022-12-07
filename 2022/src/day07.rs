@@ -34,7 +34,7 @@ pub(crate) fn part_2(input: &str) -> String {
     to_delete.size().to_string()
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 enum DirItem<'a> {
     Dir(Dir<'a>),
     File(File<'a>),
@@ -49,7 +49,7 @@ impl<'a> DirItem<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Dir<'a> {
     name: &'a str,
     items: Vec<DirItem<'a>>,
@@ -60,7 +60,7 @@ impl<'a> Dir<'a> {
         self.items.iter().map(|i| i.size()).sum()
     }
 
-    fn dirlist(&self) -> Vec<Dir<'a>> {
+    fn dirlist(&self) -> Vec<&Dir<'a>> {
         self.items
             .iter()
             .filter_map(|i| match i {
@@ -68,12 +68,12 @@ impl<'a> Dir<'a> {
                 _ => None,
             })
             .flat_map(|d| d.dirlist())
-            .chain(std::iter::once(self.clone()))
+            .chain(std::iter::once(self))
             .collect()
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct File<'a> {
     _name: &'a str,
     size: u32,
