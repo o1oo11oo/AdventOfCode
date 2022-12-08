@@ -30,7 +30,7 @@ mod day25;
 
 type ProblemFns = (fn(&str) -> String, fn(&str) -> String);
 
-const DAYS: [ProblemFns; 7] = [
+const DAYS: [ProblemFns; 8] = [
     (day01::part_1, day01::part_2),
     (day02::part_1, day02::part_2),
     (day03::part_1, day03::part_2),
@@ -38,7 +38,7 @@ const DAYS: [ProblemFns; 7] = [
     (day05::part_1, day05::part_2),
     (day06::part_1, day06::part_2),
     (day07::part_1, day07::part_2),
-    //(day08::part_1, day08::part_2),
+    (day08::part_1, day08::part_2),
     //(day09::part_1, day09::part_2),
     //(day10::part_1, day10::part_2),
     //(day11::part_1, day11::part_2),
