@@ -105,41 +105,35 @@ fn handle_tree(tree: &mut Visible, current_highest: &mut i8) {
     }
 }
 
-fn get_scenic_score(forest: &[Vec<u8>], row_idx: usize, column_idx: usize) -> u32 {
+fn get_scenic_score(forest: &[Vec<u8>], row_idx: usize, column_idx: usize) -> usize {
     let height = forest[row_idx][column_idx];
 
-    let mut upper_score = 0;
-    for i in (0..row_idx).rev() {
-        upper_score += 1;
-        if forest[i][column_idx] >= height {
-            break;
-        }
-    }
+    let upper_score = 1 + forest
+        .iter()
+        .rev()
+        .skip(forest.len() - row_idx)
+        .take_while(|row| row[column_idx] < height)
+        .count();
 
-    let mut lower_score = 0;
-    #[allow(clippy::needless_range_loop)]
-    for i in row_idx + 1..forest.len() {
-        lower_score += 1;
-        if forest[i][column_idx] >= height {
-            break;
-        }
-    }
+    let lower_score = forest
+        .iter()
+        .skip(row_idx + 1)
+        .take_while(|row| row[column_idx] < height)
+        .count();
 
-    let mut left_score = 0;
-    for i in (0..column_idx).rev() {
-        left_score += 1;
-        if forest[row_idx][i] >= height {
-            break;
-        }
-    }
+    let row = &forest[row_idx];
+    let left_score = row
+        .iter()
+        .rev()
+        .skip(row.len() - column_idx)
+        .take_while(|&&tree| tree < height)
+        .count();
 
-    let mut right_score = 0;
-    for i in column_idx + 1..forest[row_idx].len() {
-        right_score += 1;
-        if forest[row_idx][i] >= height {
-            break;
-        }
-    }
+    let right_score = row
+        .iter()
+        .skip(column_idx + 1)
+        .take_while(|&&tree| tree < height)
+        .count();
 
     upper_score * lower_score * left_score * right_score
 }
