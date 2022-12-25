@@ -86,8 +86,7 @@ fn bfs(map: &mut [Vec<Position>], start: (usize, usize)) {
     let mut stack = VecDeque::new();
     stack.push_back(start);
 
-    loop {
-        let Some(current_pos) = stack.pop_front() else {break};
+    while let Some(current_pos) = stack.pop_front() {
         let distance = map[current_pos.0][current_pos.1].distance;
 
         let reachable = find_reachable(map, current_pos);
