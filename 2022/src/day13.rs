@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::digit1,
+    character::complete::u8,
     combinator::{map, opt},
     multi::many0,
     sequence::{delimited, terminated},
@@ -47,18 +47,10 @@ pub(crate) fn part_2(input: &str) -> String {
     packets.push(end.clone());
     packets.sort();
 
-    packets
-        .iter()
-        .enumerate()
-        .filter_map(|p| {
-            if p.1 == &start || p.1 == &end {
-                Some(p.0 + 1)
-            } else {
-                None
-            }
-        })
-        .product::<usize>()
-        .to_string()
+    let s = packets.binary_search(&start).unwrap();
+    let e = packets.binary_search(&end).unwrap();
+
+    ((s + 1) * (e + 1)).to_string()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -75,30 +67,25 @@ impl PartialOrd for Packet {
 
 impl Ord for Packet {
     fn cmp(&self, other: &Self) -> Ordering {
-        match self {
-            Packet::Item(left_num) => match other {
-                Packet::Item(right_num) => left_num.cmp(right_num),
-                Packet::List(_) => Packet::List(vec![self.to_owned()]).cmp(other),
-            },
-            Packet::List(left_list) => match other {
-                Packet::Item(_) => self.cmp(&Packet::List(vec![other.to_owned()])),
-                Packet::List(right_list) => {
-                    for i in 0..left_list.len().min(right_list.len()) {
-                        let ord = left_list[i].cmp(&right_list[i]);
-                        if ord != Ordering::Equal {
-                            return ord;
-                        }
-                    }
-                    left_list.len().cmp(&right_list.len())
-                }
-            },
+        use Packet::*;
+        match (self, other) {
+            (Item(left_num), Item(right_num)) => left_num.cmp(right_num),
+            (Item(_), List(_)) => List(vec![self.to_owned()]).cmp(other),
+            (List(_), Item(_)) => self.cmp(&List(vec![other.to_owned()])),
+            // left_list.cmp(right_list) would be sufficient
+            (List(left_list), List(right_list)) => left_list
+                .iter()
+                .zip(right_list.iter())
+                .map(|(l, r)| l.cmp(r))
+                .find(|&o| o != Ordering::Equal)
+                .unwrap_or_else(|| left_list.len().cmp(&right_list.len())),
         }
     }
 }
 
 fn parse_packet(input: &str) -> IResult<&str, Packet> {
     alt((
-        map(digit1, |i: &str| Packet::Item(i.parse().unwrap())),
+        map(u8, Packet::Item),
         map(
             delimited(
                 tag("["),
