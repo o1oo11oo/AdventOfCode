@@ -2,9 +2,9 @@ use std::fmt::Display;
 
 pub(crate) fn part_1(input: &str) -> String {
     let (mut area, spawn) = parse_input(input);
-    let mut count = 0;
+    let mut count = 0u32;
 
-    while simulate_one_sand(&mut area, spawn) {
+    while simulate_one_sand(&mut area, spawn).is_some() {
         count += 1;
     }
 
@@ -15,13 +15,13 @@ pub(crate) fn part_1(input: &str) -> String {
 pub(crate) fn part_2(input: &str) -> String {
     let (mut area, spawn) = parse_input(input);
 
-    for x in area.last_mut().unwrap() {
-        *x = Material::Stone;
-    }
+    let left = area.len().saturating_sub(spawn.0) - 1;
+    let right = area.len().saturating_sub(area[0].len() - spawn.0);
+    let spawn = (spawn.0 + left, spawn.1);
+    widen_area(&mut area, left, right, true);
 
-    let mut count = 0;
-    while area[spawn.1][spawn.0] != Material::Sand {
-        simulate_one_sand(&mut area, spawn);
+    let mut count = 1u32;
+    while simulate_one_sand(&mut area, spawn) != Some(spawn) {
         count += 1;
     }
 
@@ -46,11 +46,11 @@ impl Display for Material {
     }
 }
 
-fn simulate_one_sand(area: &mut [Vec<Material>], spawn: (usize, usize)) -> bool {
+fn simulate_one_sand(area: &mut [Vec<Material>], spawn: (usize, usize)) -> Option<(usize, usize)> {
     let (mut x, mut y) = spawn;
     loop {
         if y + 1 >= area.len() {
-            return false;
+            return None;
         }
 
         if area[y + 1][x] == Material::Air {
@@ -63,7 +63,23 @@ fn simulate_one_sand(area: &mut [Vec<Material>], spawn: (usize, usize)) -> bool 
             x += 1;
         } else {
             area[y][x] = Material::Sand;
-            return true;
+            return Some((x, y));
+        }
+    }
+}
+
+fn widen_area(area: &mut [Vec<Material>], left: usize, right: usize, floor: bool) {
+    for line in &mut *area {
+        *line = std::iter::repeat(Material::Air)
+            .take(left)
+            .chain(line.drain(..))
+            .chain(std::iter::repeat(Material::Air).take(right))
+            .collect();
+    }
+
+    if floor {
+        for x in area.last_mut().unwrap() {
+            *x = Material::Stone;
         }
     }
 }
@@ -89,9 +105,8 @@ fn parse_input(input: &str) -> (Vec<Vec<Material>>, (usize, usize)) {
             },
         );
 
-    // hardcoded so that solution works
-    let shift = x_min.saturating_sub(149);
-    let x_max = x_max - shift + 141;
+    let shift = x_min.saturating_sub(2);
+    let x_max = x_max - shift + 1;
     let spawn = (500 - shift, 0);
 
     let pairs = input
