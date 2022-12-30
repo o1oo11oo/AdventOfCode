@@ -9,4 +9,5 @@ clap = { version = "4.0.29", features = ["derive"] }
 itertools = "0.10.5"
 log = "0.4.17"
 nom = "7.1.1"
+petgraph = "0.6.2"
 pretty_env_logger = "0.4.0"
