@@ -90,10 +90,14 @@ fn main() {
 
     log::info!("Selected day {}", args.day);
     log::info!("Running part 1...");
+    let start = std::time::Instant::now();
     let res = (part_1)(&input);
-    log::info!("Done, Result: {res}");
+    let elapsed = start.elapsed();
+    log::info!("Done in {elapsed:?}, Result: {res}");
 
     log::info!("Running part 2...");
+    let start = std::time::Instant::now();
     let res = (part_2)(&input);
-    log::info!("Done, Result: {res}");
+    let elapsed = start.elapsed();
+    log::info!("Done in {elapsed:?}, Result: {res}");
 }

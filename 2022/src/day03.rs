@@ -23,9 +23,9 @@ pub(crate) fn part_1(input: &str) -> String {
         .rev()
         .chain(('a'..='z').rev())
         .collect::<String>();
-    log::info!("{alphabet: >64}");
+    log::debug!("{alphabet: >64}");
     for (idx, prio) in &duplicates {
-        log::info!("{idx:#064b}, prio: {prio}");
+        log::debug!("{idx:#064b}, prio: {prio}");
     }
 
     duplicates
@@ -59,9 +59,9 @@ pub(crate) fn part_2(input: &str) -> String {
         .rev()
         .chain(('a'..='z').rev())
         .collect::<String>();
-    log::info!("{alphabet: >64}");
+    log::debug!("{alphabet: >64}");
     for (idx, prio) in &badges {
-        log::info!("{idx:#064b}, prio: {prio}");
+        log::debug!("{idx:#064b}, prio: {prio}");
     }
 
     badges
