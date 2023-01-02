@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take},
@@ -13,7 +12,10 @@ pub(crate) fn part_1(input: &str) -> String {
         .lines()
         .map(|l| parse_formula(l).unwrap().1)
         .collect::<Vec<_>>();
-    find_solution(&formulas, "root").to_string()
+    ExpressionTree::from_formulas(&formulas, "root", None, None)
+        .flatten()
+        .solve()
+        .to_string()
 }
 
 pub(crate) fn part_2(input: &str) -> String {
@@ -21,58 +23,10 @@ pub(crate) fn part_2(input: &str) -> String {
         .lines()
         .map(|l| parse_formula(l).unwrap().1)
         .collect::<Vec<_>>();
-    let formulas = flatten_formulas(formulas, "humn");
-    let tree = ExpressionTree::from_formulas(&formulas, "root", "root", "humn");
-    tree.solve_equation().to_string()
-}
-
-fn find_solution(formulas: &[Formula], name: &str) -> i64 {
-    match formulas.iter().find(|f| f.name == name).unwrap().expression {
-        Expression::Number(value) => value,
-        Expression::Sum(a, b) => find_solution(formulas, a) + find_solution(formulas, b),
-        Expression::Difference(a, b) => find_solution(formulas, a) - find_solution(formulas, b),
-        Expression::Product(a, b) => find_solution(formulas, a) * find_solution(formulas, b),
-        Expression::Quotient(a, b) => find_solution(formulas, a) / find_solution(formulas, b),
-    }
-}
-
-fn flatten_formulas<'a>(mut formulas: Vec<Formula<'a>>, ignore: &'a str) -> Vec<Formula<'a>> {
-    let mut changed = true;
-    while changed {
-        changed = false;
-        let numbers = formulas
-            .iter()
-            .copied()
-            .filter(|f| {
-                matches!(f.expression, Expression::Number(_))
-                    && f.name != ignore
-                    && f.name != "root"
-            })
-            .sorted()
-            .collect_vec();
-
-        formulas
-            .iter_mut()
-            .filter(|f| !matches!(f.expression, Expression::Number(_)))
-            .for_each(|formula| {
-                let operands = formula.expression.operands();
-                if let Ok(idx1) = numbers.binary_search_by_key(&operands.0, |f|f.name) &&
-                   let Ok(idx2) = numbers.binary_search_by_key(&operands.1, |f|f.name) {
-                    changed = true;
-                    let num1 = numbers[idx1].expression.value();
-                    let num2 = numbers[idx2].expression.value();
-                    formula.expression = match formula.expression {
-                        Expression::Number(_) => unreachable!(),
-                        Expression::Sum(_, _) => Expression::Number(num1 + num2),
-                        Expression::Difference(_, _) => Expression::Number(num1 - num2),
-                        Expression::Product(_, _) => Expression::Number(num1 * num2),
-                        Expression::Quotient(_, _) => Expression::Number(num1 / num2),
-                    }
-                }
-            });
-    }
-
-    formulas
+    ExpressionTree::from_formulas(&formulas, "root", Some("root"), Some("humn"))
+        .flatten()
+        .solve()
+        .to_string()
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -97,14 +51,6 @@ enum Expression<'a> {
 }
 
 impl<'a> Expression<'a> {
-    fn value(&self) -> i64 {
-        if let Expression::Number(value) = self {
-            *value
-        } else {
-            unreachable!()
-        }
-    }
-
     fn operands(&self) -> (&str, &str) {
         match self {
             Expression::Number(_) => unreachable!(),
@@ -146,9 +92,14 @@ enum ExpressionTree {
 }
 
 impl ExpressionTree {
-    fn from_formulas(formulas: &[Formula], current: &str, equation: &str, variable: &str) -> Self {
+    fn from_formulas(
+        formulas: &[Formula],
+        current: &str,
+        equation: Option<&str>,
+        variable: Option<&str>,
+    ) -> Self {
         let current = formulas.iter().find(|f| f.name == current).unwrap();
-        if current.name == equation && !matches!(current.expression, Expression::Number(_)) {
+        if Some(current.name) == equation && !matches!(current.expression, Expression::Number(_)) {
             let operands = current.expression.operands();
             return ExpressionTree::Equation(
                 Box::new(ExpressionTree::from_formulas(
@@ -159,7 +110,7 @@ impl ExpressionTree {
                 )),
             );
         }
-        if current.name == variable {
+        if Some(current.name) == variable {
             return ExpressionTree::Variable;
         }
         match current.expression {
@@ -199,62 +150,107 @@ impl ExpressionTree {
         }
     }
 
-    fn solve_equation(&self) -> i64 {
+    fn flatten(self) -> ExpressionTree {
         match self {
-            ExpressionTree::Equation(a, b) => a.solve(b),
+            ExpressionTree::Number(_) | ExpressionTree::Variable => self,
+            ExpressionTree::Equation(a, b) => {
+                ExpressionTree::Equation(Box::new(a.flatten()), Box::new(b.flatten()))
+            }
+            ExpressionTree::Sum(a, b) => {
+                let a = a.flatten();
+                let b = b.flatten();
+                if let ExpressionTree::Number(a) = a && let ExpressionTree::Number(b) = b
+                {
+                    ExpressionTree::Number(a + b)
+                } else {
+                    ExpressionTree::Sum(Box::new(a), Box::new(b))
+                }
+            }
+            ExpressionTree::Difference(a, b) => {
+                let a = a.flatten();
+                let b = b.flatten();
+                if let ExpressionTree::Number(a) = a && let ExpressionTree::Number(b) = b
+                {
+                    ExpressionTree::Number(a - b)
+                } else {
+                    ExpressionTree::Difference(Box::new(a), Box::new(b))
+                }
+            }
+            ExpressionTree::Product(a, b) => {
+                let a = a.flatten();
+                let b = b.flatten();
+                if let ExpressionTree::Number(a) = a && let ExpressionTree::Number(b) = b
+                {
+                    ExpressionTree::Number(a * b)
+                } else {
+                    ExpressionTree::Product(Box::new(a), Box::new(b))
+                }
+            }
+            ExpressionTree::Quotient(a, b) => {
+                let a = a.flatten();
+                let b = b.flatten();
+                if let ExpressionTree::Number(a) = a && let ExpressionTree::Number(b) = b
+                {
+                    ExpressionTree::Number(a / b)
+                } else {
+                    ExpressionTree::Quotient(Box::new(a), Box::new(b))
+                }
+            }
+        }
+    }
+
+    fn solve(&self) -> i64 {
+        match self {
+            ExpressionTree::Equation(a, b) => a.solve_equals(b),
             ExpressionTree::Number(value) => *value,
             _ => unreachable!(),
         }
     }
 
-    fn solve(&self, other: &ExpressionTree) -> i64 {
+    fn solve_equals(&self, other: &ExpressionTree) -> i64 {
         match (self, other) {
             (ExpressionTree::Number(value), ExpressionTree::Variable)
             | (ExpressionTree::Variable, ExpressionTree::Number(value)) => *value,
             (ExpressionTree::Number(value), ExpressionTree::Sum(a, b))
             | (ExpressionTree::Sum(a, b), ExpressionTree::Number(value)) => {
-                let (value2, expression) = if let ExpressionTree::Number(value2) = &**a {
-                    (value2, &**b)
+                if let ExpressionTree::Number(value2) = &**a {
+                    b.solve_equals(&ExpressionTree::Number(value - value2))
                 } else if let ExpressionTree::Number(value2) = &**b {
-                    (value2, &**a)
+                    a.solve_equals(&ExpressionTree::Number(value - value2))
                 } else {
                     unreachable!()
-                };
-
-                expression.solve(&ExpressionTree::Number(value - value2))
+                }
             }
             (ExpressionTree::Number(value), ExpressionTree::Difference(a, b))
             | (ExpressionTree::Difference(a, b), ExpressionTree::Number(value)) => {
                 if let ExpressionTree::Number(value2) = &**a {
                     // v2-b=v => -b=v-v2 => b=-(v-v2)=-v+v2=v2-v
-                    b.solve(&ExpressionTree::Number(value2 - value))
+                    b.solve_equals(&ExpressionTree::Number(value2 - value))
                 } else if let ExpressionTree::Number(value2) = &**b {
                     // a-v2=v => a=v2+v
-                    a.solve(&ExpressionTree::Number(value2 + value))
+                    a.solve_equals(&ExpressionTree::Number(value2 + value))
                 } else {
                     unreachable!()
                 }
             }
             (ExpressionTree::Number(value), ExpressionTree::Product(a, b))
             | (ExpressionTree::Product(a, b), ExpressionTree::Number(value)) => {
-                let (value2, expression) = if let ExpressionTree::Number(value2) = &**a {
-                    (value2, &**b)
+                if let ExpressionTree::Number(value2) = &**a {
+                    b.solve_equals(&ExpressionTree::Number(value / value2))
                 } else if let ExpressionTree::Number(value2) = &**b {
-                    (value2, &**a)
+                    a.solve_equals(&ExpressionTree::Number(value / value2))
                 } else {
                     unreachable!()
-                };
-
-                expression.solve(&ExpressionTree::Number(value / value2))
+                }
             }
             (ExpressionTree::Number(value), ExpressionTree::Quotient(a, b))
             | (ExpressionTree::Quotient(a, b), ExpressionTree::Number(value)) => {
                 if let ExpressionTree::Number(value2) = &**a {
                     // v2/b=v => 1/b=v/v2 => b=v2/v
-                    b.solve(&ExpressionTree::Number(value2 / value))
+                    b.solve_equals(&ExpressionTree::Number(value2 / value))
                 } else if let ExpressionTree::Number(value2) = &**b {
                     // a/v2=v => a=v2*v
-                    a.solve(&ExpressionTree::Number(value2 * value))
+                    a.solve_equals(&ExpressionTree::Number(value2 * value))
                 } else {
                     unreachable!()
                 }
