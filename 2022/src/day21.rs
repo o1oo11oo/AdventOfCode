@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take},
@@ -8,37 +10,25 @@ use nom::{
 };
 
 pub(crate) fn part_1(input: &str) -> String {
-    let formulas = input
+    let expressions = input
         .lines()
-        .map(|l| parse_formula(l).unwrap().1)
-        .collect::<Vec<_>>();
-    ExpressionTree::from_formulas(&formulas, "root", None, None)
+        .map(|l| parse_expression(l).unwrap().1)
+        .collect::<HashMap<_, _>>();
+    ExpressionTree::from_expressions(&expressions, "root", None, None)
         .flatten()
         .solve()
         .to_string()
 }
 
 pub(crate) fn part_2(input: &str) -> String {
-    let formulas = input
+    let expressions = input
         .lines()
-        .map(|l| parse_formula(l).unwrap().1)
-        .collect::<Vec<_>>();
-    ExpressionTree::from_formulas(&formulas, "root", Some("root"), Some("humn"))
+        .map(|l| parse_expression(l).unwrap().1)
+        .collect::<HashMap<_, _>>();
+    ExpressionTree::from_expressions(&expressions, "root", Some("root"), Some("humn"))
         .flatten()
         .solve()
         .to_string()
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct Formula<'a> {
-    name: &'a str,
-    expression: Expression<'a>,
-}
-
-impl<'a> From<(&'a str, Expression<'a>)> for Formula<'a> {
-    fn from((name, expression): (&'a str, Expression<'a>)) -> Self {
-        Formula { name, expression }
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -92,61 +82,59 @@ enum ExpressionTree {
 }
 
 impl ExpressionTree {
-    fn from_formulas(
-        formulas: &[Formula],
-        current: &str,
+    fn from_expressions(
+        expressions: &HashMap<&str, Expression>,
+        root: &str,
         equation: Option<&str>,
         variable: Option<&str>,
     ) -> Self {
-        let current = formulas.iter().find(|f| f.name == current).unwrap();
-        if Some(current.name) == equation && !matches!(current.expression, Expression::Number(_)) {
-            let operands = current.expression.operands();
+        let expression = expressions.get(root).unwrap();
+        if Some(root) == equation && !matches!(expression, Expression::Number(_)) {
+            let operands = expression.operands();
             return ExpressionTree::Equation(
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, operands.0, equation, variable,
+                Box::new(ExpressionTree::from_expressions(
+                    expressions,
+                    operands.0,
+                    equation,
+                    variable,
                 )),
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, operands.1, equation, variable,
+                Box::new(ExpressionTree::from_expressions(
+                    expressions,
+                    operands.1,
+                    equation,
+                    variable,
                 )),
             );
         }
-        if Some(current.name) == variable {
+        if Some(root) == variable {
             return ExpressionTree::Variable;
         }
-        match current.expression {
-            Expression::Number(value) => ExpressionTree::Number(value),
-            Expression::Sum(a, b) => ExpressionTree::Sum(
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, a, equation, variable,
-                )),
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, b, equation, variable,
-                )),
-            ),
-            Expression::Difference(a, b) => ExpressionTree::Difference(
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, a, equation, variable,
-                )),
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, b, equation, variable,
-                )),
-            ),
-            Expression::Product(a, b) => ExpressionTree::Product(
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, a, equation, variable,
-                )),
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, b, equation, variable,
-                )),
-            ),
-            Expression::Quotient(a, b) => ExpressionTree::Quotient(
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, a, equation, variable,
-                )),
-                Box::new(ExpressionTree::from_formulas(
-                    formulas, b, equation, variable,
-                )),
-            ),
+        if let Expression::Number(value) = expression {
+            return ExpressionTree::Number(*value);
+        }
+
+        let (a, b) = expression.operands();
+        let (a, b) = (
+            Box::new(ExpressionTree::from_expressions(
+                expressions,
+                a,
+                equation,
+                variable,
+            )),
+            Box::new(ExpressionTree::from_expressions(
+                expressions,
+                b,
+                equation,
+                variable,
+            )),
+        );
+
+        match expression {
+            Expression::Number(value) => ExpressionTree::Number(*value),
+            Expression::Sum(_, _) => ExpressionTree::Sum(a, b),
+            Expression::Difference(_, _) => ExpressionTree::Difference(a, b),
+            Expression::Product(_, _) => ExpressionTree::Product(a, b),
+            Expression::Quotient(_, _) => ExpressionTree::Quotient(a, b),
         }
     }
 
@@ -260,18 +248,15 @@ impl ExpressionTree {
     }
 }
 
-fn parse_formula(input: &str) -> IResult<&str, Formula> {
-    map(
-        tuple((
-            terminated(alpha1, tag(": ")),
-            alt((
-                map(i64, Expression::from),
-                map(
-                    tuple((alpha1, delimited(tag(" "), take(1u8), tag(" ")), alpha1)),
-                    Expression::from,
-                ),
-            )),
+fn parse_expression(input: &str) -> IResult<&str, (&str, Expression)> {
+    tuple((
+        terminated(alpha1, tag(": ")),
+        alt((
+            map(i64, Expression::from),
+            map(
+                tuple((alpha1, delimited(tag(" "), take(1u8), tag(" ")), alpha1)),
+                Expression::from,
+            ),
         )),
-        Formula::from,
-    )(input)
+    ))(input)
 }
