@@ -1,5 +1,6 @@
 #![feature(iter_array_chunks)]
 #![feature(let_chains)]
+#![feature(iter_intersperse)]
 
 use clap::Parser;
 
@@ -31,7 +32,7 @@ mod day25;
 
 type ProblemFns = (fn(&str) -> String, fn(&str) -> String);
 
-const DAYS: [ProblemFns; 21] = [
+const DAYS: [ProblemFns; 22] = [
     (day01::part_1, day01::part_2),
     (day02::part_1, day02::part_2),
     (day03::part_1, day03::part_2),
@@ -53,7 +54,7 @@ const DAYS: [ProblemFns; 21] = [
     (day19::part_1, day19::part_2),
     (day20::part_1, day20::part_2),
     (day21::part_1, day21::part_2),
-    //(day22::part_1, day22::part_2),
+    (day22::part_1, day22::part_2),
     //(day23::part_1, day23::part_2),
     //(day24::part_1, day24::part_2),
     //(day25::part_1, day25::part_2),
