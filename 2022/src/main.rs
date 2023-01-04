@@ -1,6 +1,5 @@
 #![feature(iter_array_chunks)]
 #![feature(let_chains)]
-#![feature(iter_intersperse)]
 
 use clap::Parser;
 

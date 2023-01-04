@@ -18,7 +18,6 @@ pub(crate) fn part_1(input: &str) -> String {
 
     let mut positions = vec![pos];
     for instruction in instructions {
-        log::debug!("\n{}", display_path(&map, &positions));
         let steps = pos.apply_instruction(Shape::Map(&map), &instruction);
         positions.extend(steps);
         pos = *positions.last().unwrap();
@@ -35,9 +34,8 @@ pub(crate) fn part_2(input: &str) -> String {
 
     let mut positions = vec![pos.get_original(&cube)];
     for instruction in instructions {
-        log::debug!("\n{}", display_path(&map, &positions));
         let steps = pos.apply_instruction(Shape::Cube(&cube), &instruction);
-        positions.extend(steps.iter().map(|s| s.get_original(&cube)));
+        positions.extend(steps.map(|s| s.get_original(&cube)));
         pos = positions.last().unwrap().get_on_cube(&cube);
     }
     log::debug!("\n{}", display_path(&map, &positions));
@@ -73,7 +71,14 @@ impl<'a> From<Shape<'a>> for Cube {
                 .collect()
         }
 
-        let side_len = if map.len() == 12 { 4 } else { 50 };
+        let side_len = ((map
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter(|&&tile| tile != Tile::Air)
+            .count()
+            / 6) as f32)
+            .sqrt()
+            .round() as usize;
         let mut sides = (0..4 * side_len)
             .step_by(side_len)
             .cartesian_product((0..4 * side_len).step_by(side_len))
@@ -95,21 +100,21 @@ impl<'a> From<Shape<'a>> for Cube {
                 && let Some(idx) = start_points.get(&(row, column))
             {
                 connections
-                .entry((*start_idx, Direction::North))
-                .or_insert((*idx, Direction::North));
+                    .entry((*start_idx, Direction::North))
+                    .or_insert((*idx, Direction::North));
                 connections
-                .entry((*idx, Direction::South))
-                .or_insert((*start_idx, Direction::South));
+                    .entry((*idx, Direction::South))
+                    .or_insert((*start_idx, Direction::South));
             }
             if let (row, Some(column)) = (start.0, start.1.checked_sub(side_len))
                 && let Some(idx) = start_points.get(&(row, column))
             {
                 connections
-                .entry((*start_idx, Direction::West))
-                .or_insert((*idx, Direction::West));
+                    .entry((*start_idx, Direction::West))
+                    .or_insert((*idx, Direction::West));
                 connections
-                .entry((*idx, Direction::East))
-                .or_insert((*start_idx, Direction::East));
+                    .entry((*idx, Direction::East))
+                    .or_insert((*start_idx, Direction::East));
             }
             if let Some(idx) = start_points.get(&(start.0 + side_len, start.1)) {
                 connections
@@ -170,28 +175,25 @@ struct Position {
 }
 
 impl Position {
-    fn apply_instruction(mut self, shape: Shape, instruction: &Instruction) -> Vec<Self> {
+    fn apply_instruction<'a>(
+        self,
+        shape: Shape<'a>,
+        instruction: &Instruction,
+    ) -> Box<dyn Iterator<Item = Self> + 'a> {
         match instruction {
-            Instruction::Left => vec![Position {
-                row: self.row,
-                column: self.column,
+            Instruction::Left => Box::new(std::iter::once(Position {
                 direction: self.direction.left(),
-                side: self.side,
-            }],
-            Instruction::Right => vec![Position {
-                row: self.row,
-                column: self.column,
+                ..self
+            })),
+            Instruction::Right => Box::new(std::iter::once(Position {
                 direction: self.direction.right(),
-                side: self.side,
-            }],
-            Instruction::Steps(amount) => {
-                let mut intermediates = vec![];
-                for _ in 0..*amount {
-                    self = self.step(shape);
-                    intermediates.push(self);
-                }
-                intermediates
-            }
+                ..self
+            })),
+            Instruction::Steps(amount) => Box::new(
+                itertools::iterate(self, move |prev| prev.step(shape))
+                    .skip(1)
+                    .take(*amount),
+            ),
         }
     }
 
@@ -207,32 +209,24 @@ impl Position {
             Direction::North => Position {
                 row: self
                     .row
-                    .wrapping_sub(1)
-                    .clamp(0, map.len().saturating_sub(1)),
-                column: self.column,
-                direction: self.direction,
-                side: self.side,
+                    .checked_sub(1)
+                    .unwrap_or(map.len().saturating_sub(1)),
+                ..self
             },
             Direction::East => Position {
-                row: self.row,
                 column: (self.column + 1) % map[0].len(),
-                direction: self.direction,
-                side: self.side,
+                ..self
             },
             Direction::South => Position {
                 row: (self.row + 1) % map.len(),
-                column: self.column,
-                direction: self.direction,
-                side: self.side,
+                ..self
             },
             Direction::West => Position {
-                row: self.row,
                 column: self
                     .column
-                    .wrapping_sub(1)
-                    .clamp(0, map[0].len().saturating_sub(1)),
-                direction: self.direction,
-                side: self.side,
+                    .checked_sub(1)
+                    .unwrap_or(map[0].len().saturating_sub(1)),
+                ..self
             },
         };
 
@@ -245,7 +239,7 @@ impl Position {
 
     fn step_on_cube(self, cube: &Cube) -> Self {
         let side = &cube.sides[self.side];
-        let (next_row, next_column) = match self.direction {
+        let (row, column) = match self.direction {
             Direction::North => (self.row.checked_sub(1), Some(self.column)),
             Direction::East => (
                 Some(self.row),
@@ -258,76 +252,51 @@ impl Position {
             Direction::West => (Some(self.row), self.column.checked_sub(1)),
         };
 
-        match (next_row, next_column) {
-            (Some(row), Some(column)) => {
-                if side[row][column] == Tile::Open {
-                    Position {
-                        row,
-                        column,
-                        direction: self.direction,
-                        side: self.side,
-                    }
-                } else {
-                    self
+        if let (Some(row), Some(column)) = (row, column) {
+            return if side[row][column] == Tile::Open {
+                Position {
+                    row,
+                    column,
+                    ..self
                 }
-            }
-            (Some(row), None) => {
-                let (new_side_idx, new_dir) =
-                    cube.connections.get(&(self.side, self.direction)).unwrap();
-                let side = &cube.sides[*new_side_idx];
-                let last = side.len() - 1; // relies on sides being square
-                let (row, column) = match (self.direction, new_dir) {
-                    (Direction::East, Direction::North) => (last, row),
-                    (Direction::East, Direction::East) => (row, 0),
-                    (Direction::East, Direction::South) => (0, last - row),
-                    (Direction::East, Direction::West) => (last - row, last),
-                    (Direction::West, Direction::North) => (last, last - row),
-                    (Direction::West, Direction::East) => (last - row, 0),
-                    (Direction::West, Direction::South) => (0, row),
-                    (Direction::West, Direction::West) => (row, last),
-                    _ => unreachable!(),
-                };
+            } else {
+                self
+            };
+        }
 
-                if side[row][column] == Tile::Open {
-                    Position {
-                        row,
-                        column,
-                        direction: *new_dir,
-                        side: *new_side_idx,
-                    }
-                } else {
-                    self
-                }
-            }
-            (None, Some(column)) => {
-                let (new_side_idx, new_dir) =
-                    cube.connections.get(&(self.side, self.direction)).unwrap();
-                let side = &cube.sides[*new_side_idx];
-                let last = side.len() - 1; // relies on sides being square
-                let (row, column) = match (self.direction, new_dir) {
-                    (Direction::North, Direction::North) => (last, column),
-                    (Direction::North, Direction::East) => (column, 0),
-                    (Direction::North, Direction::South) => (0, last - column),
-                    (Direction::North, Direction::West) => (last - column, last),
-                    (Direction::South, Direction::North) => (last, last - column),
-                    (Direction::South, Direction::East) => (last - column, 0),
-                    (Direction::South, Direction::South) => (0, column),
-                    (Direction::South, Direction::West) => (column, last),
-                    _ => unreachable!(),
-                };
+        let row = row.unwrap_or(self.row);
+        let column = column.unwrap_or(self.column);
+        let (new_side_idx, new_dir) = cube.connections.get(&(self.side, self.direction)).unwrap();
+        let side = &cube.sides[*new_side_idx];
+        let last = side.len() - 1; // relies on sides being square
+        let (row, column) = match (self.direction, new_dir) {
+            (Direction::North, Direction::North) => (last, column),
+            (Direction::North, Direction::East) => (column, 0),
+            (Direction::North, Direction::South) => (0, last - column),
+            (Direction::North, Direction::West) => (last - column, last),
+            (Direction::East, Direction::North) => (last, row),
+            (Direction::East, Direction::East) => (row, 0),
+            (Direction::East, Direction::South) => (0, last - row),
+            (Direction::East, Direction::West) => (last - row, last),
+            (Direction::South, Direction::North) => (last, last - column),
+            (Direction::South, Direction::East) => (last - column, 0),
+            (Direction::South, Direction::South) => (0, column),
+            (Direction::South, Direction::West) => (column, last),
+            (Direction::West, Direction::North) => (last, last - row),
+            (Direction::West, Direction::East) => (last - row, 0),
+            (Direction::West, Direction::South) => (0, row),
+            (Direction::West, Direction::West) => (row, last),
+        };
 
-                if side[row][column] == Tile::Open {
-                    Position {
-                        row,
-                        column,
-                        direction: *new_dir,
-                        side: *new_side_idx,
-                    }
-                } else {
-                    self
-                }
+        if side[row][column] == Tile::Open {
+            Position {
+                row,
+                column,
+                direction: *new_dir,
+                side: *new_side_idx,
             }
-            (None, None) => unreachable!(),
+        } else {
+            self
         }
     }
 
@@ -501,7 +470,7 @@ fn display_path(map: &[Vec<Tile>], positions: &[Position]) -> String {
         map[pos.row][pos.column] = pos.direction.to_string();
     }
 
-    std::iter::Iterator::intersperse(map.iter().map(|row| row.join("")), "\n".to_string()).collect()
+    map.iter().map(|row| row.join("")).join("\n")
 }
 
 fn get_map_and_instruction(input: &str) -> (Vec<Vec<Tile>>, Vec<Instruction>) {
