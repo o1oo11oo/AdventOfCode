@@ -20,6 +20,7 @@ pub(crate) fn part_1(input: &str) -> String {
 pub(crate) fn part_2(input: &str) -> String {
     let elves = get_elves(input);
     let (rounds, (elves, _)) =
+        // why write simple for loops when you can use complicated iterator statements?
         itertools::iterate((elves, Direction::North), |(e, d)| (round(e, *d), d.next()))
             .enumerate()
             .tuple_windows()
@@ -35,34 +36,31 @@ pub(crate) fn part_2(input: &str) -> String {
 }
 
 fn round(elves: &HashSet<(Num, Num)>, direction: Direction) -> HashSet<(Num, Num)> {
-    let mut proposals = HashMap::new();
-    for elf in elves {
-        let mut proposed = false;
-        if neighbours(elf).iter().any(|pos| elves.contains(pos)) {
-            for direction in direction.all_from() {
-                let neighbours = direction.neighbours(elf);
-                let proposal_target = neighbours[0];
-                if neighbours.iter().all(|pos| !elves.contains(pos)) {
-                    let (proposal_amount, proposal_sources) =
-                        proposals.entry(proposal_target).or_insert((0, vec![]));
-                    *proposal_amount += 1;
-                    proposal_sources.push(*elf);
-                    proposed = true;
-                    break;
+    elves
+        .iter()
+        .map(|elf| {
+            if neighbours(elf).iter().any(|pos| elves.contains(pos)) {
+                for direction in direction.all_from() {
+                    let neighbours = direction.neighbours(elf);
+                    let proposal_target = neighbours[0];
+                    if neighbours.iter().all(|pos| !elves.contains(pos)) {
+                        return (*elf, proposal_target);
+                    }
                 }
             }
-        }
-        if !proposed {
-            let (proposal_amount, proposal_sources) = proposals.entry(*elf).or_default();
-            *proposal_amount += 1;
-            proposal_sources.push(*elf);
-        }
-    }
 
-    proposals
+            (*elf, *elf)
+        })
+        .fold(HashMap::new(), |mut acc, (source, target)| {
+            // since a maximum of two elves can propose one position, an
+            // alternative is to collect only one source in the map and add
+            // back both sources individually if there is a collision
+            acc.entry(target).or_insert(vec![]).push(source);
+            acc
+        })
         .drain()
-        .flat_map(|(target, (count, sources))| {
-            if count == 1 {
+        .flat_map(|(target, sources)| {
+            if sources.len() == 1 {
                 // dirty tricks to make sure the types match on both arms and save some allocations
                 std::iter::once(target).chain(vec![])
             } else {
