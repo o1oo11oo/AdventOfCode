@@ -65,6 +65,10 @@ struct Args {
     #[arg(short, long, default_value_t = DAYS.len() as u8, value_parser = clap::value_parser!(u8).range(1..=(DAYS.len() as i64)))]
     day: u8,
 
+    /// Run all days, ignores --day
+    #[arg(short, long, default_value_t = false)]
+    all: bool,
+
     /// Use the example instead of the full input
     #[arg(short, long, default_value_t = false)]
     example: bool,
@@ -85,18 +89,24 @@ fn main() {
     }
     pretty_env_logger::init();
 
-    let day_idx: usize = args.day.saturating_sub(1).into();
+    if args.all {
+        let duration = (1..=DAYS.len())
+            .map(|day| run_day(day as u8, args.example))
+            .sum::<std::time::Duration>();
+        log::info!("Total time for all days: {duration:?}");
+    } else {
+        run_day(args.day, args.example);
+    }
+}
+
+fn run_day(day: u8, example: bool) -> std::time::Duration {
+    let day_idx: usize = day.saturating_sub(1).into();
     let (part_1, part_2) = DAYS[day_idx];
-    let input_path = format!("input/day{}_", args.day)
-        + if args.example {
-            "example.txt"
-        } else {
-            "input.txt"
-        };
+    let input_path = format!("input/day{day}_") + if example { "example.txt" } else { "input.txt" };
     let input =
         std::fs::read_to_string(input_path).expect("Should have been able to read the file");
 
-    log::info!("Selected day {}", args.day);
+    log::info!("Selected day {day}");
     log::info!("Running part 1...");
     let start = std::time::Instant::now();
     let res = (part_1)(&input);
@@ -109,4 +119,6 @@ fn main() {
     let elapsed2 = start.elapsed();
     log::info!("Done in {elapsed2:?}, Result: {res}");
     log::info!("Total time: {:?}", elapsed1 + elapsed2);
+
+    elapsed1 + elapsed2
 }
