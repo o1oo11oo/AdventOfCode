@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
 pub(crate) fn part_1(input: &str) -> String {
     let numbers = input.lines().map(snafu_to_dec).collect::<Vec<_>>();
     let sum = numbers.iter().sum::<i128>();
@@ -11,8 +8,8 @@ pub(crate) fn part_1(input: &str) -> String {
     dec_to_snafu(sum)
 }
 
-pub(crate) fn part_2(input: &str) -> String {
-    "Not implemented!".to_string()
+pub(crate) fn part_2(_input: &str) -> String {
+    "Start The Blender!".to_string()
 }
 
 fn snafu_to_dec(num: &str) -> i128 {
