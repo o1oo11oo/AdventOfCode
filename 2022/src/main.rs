@@ -68,15 +68,23 @@ struct Args {
     /// Use the example instead of the full input
     #[arg(short, long, default_value_t = false)]
     example: bool,
+
+    /// Enable debug output
+    #[arg(long, default_value_t = false)]
+    debug: bool,
 }
 
 fn main() {
+    let args = Args::parse();
+
+    if args.debug {
+        std::env::set_var("RUST_LOG", "debug");
+    }
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
     pretty_env_logger::init();
 
-    let args = Args::parse();
     let day_idx: usize = args.day.saturating_sub(1).into();
     let (part_1, part_2) = DAYS[day_idx];
     let input_path = format!("input/day{}_", args.day)
@@ -92,12 +100,13 @@ fn main() {
     log::info!("Running part 1...");
     let start = std::time::Instant::now();
     let res = (part_1)(&input);
-    let elapsed = start.elapsed();
-    log::info!("Done in {elapsed:?}, Result: {res}");
+    let elapsed1 = start.elapsed();
+    log::info!("Done in {elapsed1:?}, Result: {res}");
 
     log::info!("Running part 2...");
     let start = std::time::Instant::now();
     let res = (part_2)(&input);
-    let elapsed = start.elapsed();
-    log::info!("Done in {elapsed:?}, Result: {res}");
+    let elapsed2 = start.elapsed();
+    log::info!("Done in {elapsed2:?}, Result: {res}");
+    log::info!("Total time: {:?}", elapsed1 + elapsed2);
 }
