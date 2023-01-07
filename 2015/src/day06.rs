@@ -1,35 +1,24 @@
-use std::ops::RangeInclusive;
-
 use itertools::Itertools;
-use nom::{
-    branch::alt,
-    bytes::complete::tag,
-    character::complete::u16,
-    sequence::{delimited, terminated, tuple},
-    Finish, IResult,
-};
+use parse_display::FromStr;
 
 pub(crate) fn part_1(input: &str) -> String {
     let mut lights = vec![vec![false; 1000]; 1000];
-    for action in input.lines().map(Action::from) {
-        match action {
-            Action::TurnOn(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+    input
+        .lines()
+        .map(|l| l.parse().unwrap())
+        .for_each(|action| {
+            match action {
+                Action::TurnOn(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] = true;
                 }),
-            Action::Toggle(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+                Action::Toggle(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] = !lights[row][col];
                 }),
-            Action::TurnOff(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+                Action::TurnOff(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] = false;
                 }),
-        };
-    }
+            };
+        });
 
     lights
         .iter()
@@ -41,25 +30,22 @@ pub(crate) fn part_1(input: &str) -> String {
 
 pub(crate) fn part_2(input: &str) -> String {
     let mut lights = vec![vec![0_u32; 1000]; 1000];
-    for action in input.lines().map(Action::from) {
-        match action {
-            Action::TurnOn(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+    input
+        .lines()
+        .map(|l| l.parse().unwrap())
+        .for_each(|action| {
+            match action {
+                Action::TurnOn(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] += 1;
                 }),
-            Action::Toggle(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+                Action::Toggle(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] += 2;
                 }),
-            Action::TurnOff(row_range, col_range) => row_range
-                .cartesian_product(col_range)
-                .for_each(|(row, col)| {
+                Action::TurnOff(_, _, _, _) => action.range().for_each(|(row, col)| {
                     lights[row][col] = lights[row][col].saturating_sub(1);
                 }),
-        };
-    }
+            };
+        });
 
     lights
         .iter()
@@ -68,33 +54,28 @@ pub(crate) fn part_2(input: &str) -> String {
         .to_string()
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, FromStr)]
 enum Action {
-    TurnOn(RangeInclusive<usize>, RangeInclusive<usize>),
-    Toggle(RangeInclusive<usize>, RangeInclusive<usize>),
-    TurnOff(RangeInclusive<usize>, RangeInclusive<usize>),
+    #[display("turn on {0},{2} through {1},{3}")]
+    TurnOn(usize, usize, usize, usize),
+    #[display("toggle {0},{2} through {1},{3}")]
+    Toggle(usize, usize, usize, usize),
+    #[display("turn off {0},{2} through {1},{3}")]
+    TurnOff(usize, usize, usize, usize),
 }
 
-impl From<&str> for Action {
-    fn from(value: &str) -> Self {
-        fn parse(input: &str) -> IResult<&str, (&str, u16, u16, u16, u16)> {
-            tuple((
-                alt((tag("turn on "), tag("toggle "), tag("turn off "))),
-                u16,
-                delimited(tag(","), u16, tag(" through ")),
-                terminated(u16, tag(",")),
-                u16,
-            ))(input)
-        }
-
-        let res = parse(value).finish().unwrap().1;
-        match res.0 {
-            "turn on " => Action::TurnOn(res.1.into()..=res.3.into(), res.2.into()..=res.4.into()),
-            "toggle " => Action::Toggle(res.1.into()..=res.3.into(), res.2.into()..=res.4.into()),
-            "turn off " => {
-                Action::TurnOff(res.1.into()..=res.3.into(), res.2.into()..=res.4.into())
+impl Action {
+    fn range(&self) -> impl Iterator<Item = (usize, usize)> {
+        match self {
+            Action::TurnOn(row_from, row_to, col_from, col_to) => {
+                (*row_from..=*row_to).cartesian_product(*col_from..=*col_to)
             }
-            _ => unreachable!(),
+            Action::Toggle(row_from, row_to, col_from, col_to) => {
+                (*row_from..=*row_to).cartesian_product(*col_from..=*col_to)
+            }
+            Action::TurnOff(row_from, row_to, col_from, col_to) => {
+                (*row_from..=*row_to).cartesian_product(*col_from..=*col_to)
+            }
         }
     }
 }
