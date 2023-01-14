@@ -11,7 +11,7 @@ pub(crate) fn part_1(input: &str) -> String {
     let mut valleys = Valleys::from_input(input);
     let start = valleys.get_start_in(0);
     let target = valleys.get_target();
-    log::debug!("valley at start:\n{}", display_valley(valleys.get(0)));
+    log::debug!("valley at start:\n{}", display_grid(valleys.get(0)));
 
     // instead of A*, BFS works (if you properly manage the queue)
     // instead of manually implementing A*, this generic version could be used:
@@ -289,8 +289,8 @@ impl Display for Wind {
     }
 }
 
-fn display_valley(valley: &[Vec<Tile>]) -> String {
-    valley.iter().map(|row| row.iter().join("")).join("\n")
+fn display_grid<T: std::fmt::Display>(grid: &[Vec<T>]) -> String {
+    grid.iter().map(|row| row.iter().join("")).join("\n")
 }
 
 fn display_step(step: (&(usize, usize, usize), &(usize, usize, usize))) -> &'static str {
