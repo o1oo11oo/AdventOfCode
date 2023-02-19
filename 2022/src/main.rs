@@ -31,6 +31,8 @@ mod day25;
 
 type ProblemFns = (fn(&str) -> String, fn(&str) -> String);
 
+const YEAR: u32 = 2022;
+
 const DAYS: [ProblemFns; 25] = [
     (day01::part_1, day01::part_2),
     (day02::part_1, day02::part_2),
@@ -102,7 +104,8 @@ fn main() {
 fn run_day(day: u8, example: bool) -> std::time::Duration {
     let day_idx: usize = day.saturating_sub(1).into();
     let (part_1, part_2) = DAYS[day_idx];
-    let input_path = format!("input/day{day}_") + if example { "example.txt" } else { "input.txt" };
+    let directory = if example { "examples" } else { "input" };
+    let input_path = format!("../{directory}/{YEAR}/{day}.txt");
     let input =
         std::fs::read_to_string(input_path).expect("Should have been able to read the file");
 
