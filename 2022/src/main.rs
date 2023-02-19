@@ -75,18 +75,17 @@ struct Args {
     #[arg(short, long, default_value_t = false)]
     example: bool,
 
-    /// Enable debug output
-    #[arg(long, default_value_t = false)]
-    debug: bool,
+    /// Overwrite environment or default loglevel
+    #[arg(short, long)]
+    loglevel: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    if args.debug {
-        std::env::set_var("RUST_LOG", "debug");
-    }
-    if std::env::var("RUST_LOG").is_err() {
+    if let Some(loglevel) = &args.loglevel {
+        std::env::set_var("RUST_LOG", loglevel);
+    } else if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
     pretty_env_logger::init();
